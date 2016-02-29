@@ -53,6 +53,7 @@ enum {
 	INSTANCE_ATTR_JAIL,
 	INSTANCE_ATTR_TRACE,
 	INSTANCE_ATTR_SECCOMP,
+	INSTANCE_ATTR_PIDFILE,
 	__INSTANCE_ATTR_MAX
 };
 
@@ -75,6 +76,7 @@ static const struct blobmsg_policy instance_attr[__INSTANCE_ATTR_MAX] = {
 	[INSTANCE_ATTR_JAIL] = { "jail", BLOBMSG_TYPE_TABLE },
 	[INSTANCE_ATTR_TRACE] = { "trace", BLOBMSG_TYPE_BOOL },
 	[INSTANCE_ATTR_SECCOMP] = { "seccomp", BLOBMSG_TYPE_STRING },
+	[INSTANCE_ATTR_PIDFILE] = { "pidfile", BLOBMSG_TYPE_STRING },
 };
 
 enum {
@@ -241,6 +243,7 @@ instance_run(struct service_instance *in, int _stdout, int _stderr)
 	int rem, _stdin;
 	bool seccomp = !in->trace && !in->has_jail && in->seccomp;
 	bool setlbf = _stdout >= 0;
+	int _pidfile;
 
 	if (in->nice)
 		setpriority(PRIO_PROCESS, 0, in->nice);
@@ -308,6 +311,24 @@ instance_run(struct service_instance *in, int _stdout, int _stderr)
 	if (in->uid && setuid(in->uid)) {
 		ERROR("failed to set user id %d: %d (%s)\n", in->uid, errno, strerror(errno));
 		exit(127);
+	}
+	if (in->pidfile) {
+		_pidfile = open(in->pidfile, O_CREAT | O_TRUNC | O_WRONLY);
+		if (_pidfile < 0) {
+			ERROR("failed to open pidfile for writing: %s: %d (%s)",
+				in->pidfile, errno, strerror(errno));
+			exit(127);
+		}
+		if (write(_pidfile, &in->proc.pid, sizeof(pid_t) != sizeof(pid_t))) {
+			ERROR("failed to write pidfile: %s: %d (%s)",
+				in->pidfile, errno, strerror(errno));
+			exit(127);
+		}
+		if (close(_pidfile)) {
+			ERROR("failed to close pidfile: %s: %d (%s)",
+				in->pidfile, errno, strerror(errno));
+			exit(127);
+		}
 	}
 
 	execvp(argv[0], argv);
@@ -378,7 +399,7 @@ instance_start(struct service_instance *in)
 		return;
 	}
 
-	DEBUG(2, "Started instance %s::%s\n", in->srv->name, in->name);
+	DEBUG(2, "Started instance %s::%s[%d]\n", in->srv->name, in->name, pid);
 	in->proc.pid = pid;
 	clock_gettime(CLOCK_MONOTONIC, &in->start);
 	uloop_process_add(&in->proc);
@@ -536,6 +557,9 @@ instance_config_changed(struct service_instance *in, struct service_instance *in
 		return true;
 
 	if (in->gid != in_new->gid)
+		return true;
+
+	if (strcmp(in->pidfile, in_new->pidfile))
 		return true;
 
 	if (!blobmsg_list_equal(&in->limits, &in_new->limits))
@@ -780,6 +804,13 @@ instance_config_parse(struct service_instance *in)
 		else
 			in->seccomp = seccomp;
 	}
+	if (tb[INSTANCE_ATTR_PIDFILE]) {
+		char *pidfile = blobmsg_get_string(tb[INSTANCE_ATTR_PIDFILE]);
+		if (pidfile) {
+			/* TODO - should we check the path is writable somehow? */
+			in->pidfile = pidfile;
+		}
+	}
 	if (!in->trace && tb[INSTANCE_ATTR_JAIL])
 		in->has_jail = instance_jail_parse(in, tb[INSTANCE_ATTR_JAIL]);
 
@@ -834,6 +865,7 @@ instance_config_move(struct service_instance *in, struct service_instance *in_sr
 	blobmsg_list_move(&in->jail.mount, &in_src->jail.mount);
 	in->trigger = in_src->trigger;
 	in->command = in_src->command;
+	in->pidfile = in_src->pidfile;
 	in->name = in_src->name;
 	in->node.avl.key = in_src->node.avl.key;
 
@@ -965,6 +997,9 @@ void instance_dump(struct blob_buf *b, struct service_instance *in, int verbose)
 
 	if (in->seccomp)
 		blobmsg_add_string(b, "seccomp", in->seccomp);
+
+	if (in->pidfile)
+		blobmsg_add_string(b, "pidfile", in->pidfile);
 
 	if (in->has_jail) {
 		void *r = blobmsg_open_table(b, "jail");
