@@ -313,6 +313,7 @@ instance_run(struct service_instance *in, int _stdout, int _stderr)
 		exit(127);
 	}
 	if (in->pidfile) {
+		LOG("in->pidfile existed and was: %s\n", in->pidfile);
 		_pidfile = open(in->pidfile, O_CREAT | O_TRUNC | O_WRONLY);
 		if (_pidfile < 0) {
 			ERROR("failed to open pidfile for writing: %s: %d (%s)",
@@ -805,6 +806,7 @@ instance_config_parse(struct service_instance *in)
 			in->seccomp = seccomp;
 	}
 	if (tb[INSTANCE_ATTR_PIDFILE]) {
+		LOG("config_parse detected pidfile attr in :%s\n", in->name);
 		char *pidfile = blobmsg_get_string(tb[INSTANCE_ATTR_PIDFILE]);
 		if (pidfile) {
 			/* TODO - should we check the path is writable somehow? */
