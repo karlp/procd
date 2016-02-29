@@ -560,8 +560,19 @@ instance_config_changed(struct service_instance *in, struct service_instance *in
 	if (in->gid != in_new->gid)
 		return true;
 
-	if (strcmp(in->pidfile, in_new->pidfile))
+	if (in->pidfile && in_new->pidfile) {
+		LOG("new and old pids, checking they match?\n");
+		if (strcmp(in->pidfile, in_new->pidfile))
+			return true;
+	}
+	if (in->pidfile && !in_new->pidfile) {
+		LOG("old but not new pids?\n");
 		return true;
+	}
+	if (!in->pidfile && in_new->pidfile) {
+		LOG("not old but new pids?\n");
+		return true;
+	}
 
 	if (!blobmsg_list_equal(&in->limits, &in_new->limits))
 		return true;
@@ -809,6 +820,7 @@ instance_config_parse(struct service_instance *in)
 		LOG("config_parse detected pidfile attr in :%s\n", in->name);
 		char *pidfile = blobmsg_get_string(tb[INSTANCE_ATTR_PIDFILE]);
 		if (pidfile) {
+			LOG("And we got a pidfile from the blob: %s\n", pidfile);
 			/* TODO - should we check the path is writable somehow? */
 			in->pidfile = pidfile;
 		}
@@ -1000,8 +1012,10 @@ void instance_dump(struct blob_buf *b, struct service_instance *in, int verbose)
 	if (in->seccomp)
 		blobmsg_add_string(b, "seccomp", in->seccomp);
 
-	if (in->pidfile)
+	if (in->pidfile) {
+		LOG("adding pidfile to blob: %s\n", in->pidfile);
 		blobmsg_add_string(b, "pidfile", in->pidfile);
+	}
 
 	if (in->has_jail) {
 		void *r = blobmsg_open_table(b, "jail");
