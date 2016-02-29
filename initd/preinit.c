@@ -72,6 +72,7 @@ spawn_procd(struct uloop_process *proc, int ret)
 		snprintf(dbg, 2, "%d", debug);
 		setenv("DBGLVL", dbg, 1);
 	}
+	fprintf(stderr, "KARLLLLL: spawn debug was %d, setting to 4 anyway\n", debug);
 
 	execvp(argv[0], argv);
 }
