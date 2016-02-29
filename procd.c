@@ -49,6 +49,8 @@ int main(int argc, char **argv)
 		debug = atoi(dbglvl);
 		unsetenv("DBGLVL");
 	}
+	fprintf(stderr, "KARL: debug was %d, setting to 4 anyway\n", debug);
+	debug = 4;
 
 	while ((ch = getopt(argc, argv, "d:s:h:")) != -1) {
 		switch (ch) {
