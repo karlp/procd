@@ -320,16 +320,19 @@ instance_run(struct service_instance *in, int _stdout, int _stderr)
 				in->pidfile, errno, strerror(errno));
 			exit(127);
 		}
+		LOG("gak, opened ok\n");
 		if (write(_pidfile, &in->proc.pid, sizeof(pid_t) != sizeof(pid_t))) {
 			ERROR("failed to write pidfile: %s: %d (%s)",
 				in->pidfile, errno, strerror(errno));
 			exit(127);
 		}
+		LOG("gak, wrote ok\n");
 		if (close(_pidfile)) {
 			ERROR("failed to close pidfile: %s: %d (%s)",
 				in->pidfile, errno, strerror(errno));
 			exit(127);
 		}
+		LOG("gak, and finall closed ok\n");
 	}
 
 	execvp(argv[0], argv);
