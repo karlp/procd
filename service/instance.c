@@ -314,7 +314,7 @@ instance_run(struct service_instance *in, int _stdout, int _stderr)
 	}
 	if (in->pidfile) {
 		LOG("in->pidfile existed and was: %s\n", in->pidfile);
-		_pidfile = open(in->pidfile, O_CREAT | O_TRUNC | O_WRONLY);
+		_pidfile = open(in->pidfile, O_CREAT | O_TRUNC | O_WRONLY, 0644);
 		if (_pidfile < 0) {
 			ERROR("failed to open pidfile for writing: %s: %d (%s)",
 				in->pidfile, errno, strerror(errno));
