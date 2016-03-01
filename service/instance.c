@@ -320,8 +320,10 @@ instance_run(struct service_instance *in, int _stdout, int _stderr)
 				in->pidfile, errno, strerror(errno));
 			exit(127);
 		}
-		LOG("gak, opened ok\n");
-		if (write(_pidfile, &in->proc.pid, sizeof(pid_t) != sizeof(pid_t))) {
+		LOG("gak, opened ok, let's try writing pid of %d\n", in->proc.pid);
+		char buf[10];
+		sprintf(buf, "%d\n", in->proc.pid);
+		if (write(_pidfile, buf, strlen(buf))) {
 			ERROR("failed to write pidfile: %s: %d (%s)",
 				in->pidfile, errno, strerror(errno));
 			exit(127);
